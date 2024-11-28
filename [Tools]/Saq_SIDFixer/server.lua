@@ -24,6 +24,7 @@ function fixUsersWithNullSID()
             -- Wait for a short period to avoid locking the server
             Citizen.Wait(100)  -- Wait 100 milliseconds between updates
         end
+        print("[^2INFO^0] Finished fixing all users with null SIDs.")
     end)
 end
 
