@@ -213,11 +213,12 @@ function Core.SavePlayer(xPlayer, cb)
         json.encode(xPlayer.getInventory(true)),
         json.encode(xPlayer.getLoadout(true)),
         json.encode(xPlayer.getMeta()),
+        xPlayer.sid,
         xPlayer.identifier,
     }
 
     MySQL.prepare(
-        "UPDATE `users` SET `accounts` = ?, `job` = ?, `job_grade` = ?, `group` = ?, `position` = ?, `inventory` = ?, `loadout` = ?, `metadata` = ? WHERE `identifier` = ?",
+        "UPDATE `users` SET `accounts` = ?, `job` = ?, `job_grade` = ?, `group` = ?, `position` = ?, `inventory` = ?, `loadout` = ?, `metadata` = ?, `sid` = ? WHERE `identifier` = ?",
         parameters,
         function(affectedRows)
             if affectedRows == 1 then
@@ -253,12 +254,13 @@ function Core.SavePlayers(cb)
             json.encode(xPlayer.getInventory(true)),
             json.encode(xPlayer.getLoadout(true)),
             json.encode(xPlayer.getMeta()),
+            xPlayer.sid,
             xPlayer.identifier,
         }
     end
 
     MySQL.prepare(
-        "UPDATE `users` SET `accounts` = ?, `job` = ?, `job_grade` = ?, `group` = ?, `position` = ?, `inventory` = ?, `loadout` = ?, `metadata` = ? WHERE `identifier` = ?",
+        "UPDATE `users` SET `accounts` = ?, `job` = ?, `job_grade` = ?, `group` = ?, `position` = ?, `inventory` = ?, `loadout` = ?, `metadata` = ?, `sid` = ? WHERE `identifier` = ?",
         parameters,
         function(results)
             if not results then
@@ -347,7 +349,13 @@ end
 ---@param source number
 ---@return table
 function ESX.GetPlayerFromId(source)
-    return ESX.Players[tonumber(source)]
+    return ESX.Players[tonumber(source)] or Core.playersByIdentifier[source] or Core.playersBySID[source] or nil
+end
+
+---@param sid string
+---@return table
+function ESX.GetPlayerFromSid(sid)
+    return Core.playersBySID[sid]
 end
 
 ---@param identifier string

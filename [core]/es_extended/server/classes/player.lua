@@ -28,7 +28,7 @@
 ---@param name string
 ---@param coords table | vector4
 ---@param metadata table
-function CreateExtendedPlayer(playerId, identifier, group, accounts, inventory, weight, job, loadout, name, coords, metadata)
+function CreateExtendedPlayer(playerId, identifier, group, accounts, inventory, weight, job, loadout, name, coords, metadata,sid)
     ---@class xPlayer
     local self = {}
 
@@ -49,6 +49,7 @@ function CreateExtendedPlayer(playerId, identifier, group, accounts, inventory, 
     self.lastPlaytime = self.metadata.lastPlaytime or 0
     self.paycheckEnabled = true
     self.admin = Core.IsPlayerAdmin(playerId)
+    self.sid = sid
     if Config.Multichar then
         local startIndex = identifier:find(":", 1)
         if startIndex then
@@ -165,6 +166,19 @@ function CreateExtendedPlayer(playerId, identifier, group, accounts, inventory, 
     ---@return string
     function self.getIdentifier()
         return self.identifier
+    end
+
+    --@return string
+    function self.getSid()
+        return self.sid
+    end
+
+    ---@param newSid string
+    ---@return tuple string,string
+    function self.setSid(newSID)
+        local oldsid = self.sid
+        self.sid = newSID
+        return self.sid,oldsid
     end
 
     ---@param newGroup string

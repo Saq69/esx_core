@@ -2,8 +2,8 @@ SetMapName("San Andreas")
 SetGameType("ESX Legacy")
 
 local oneSyncState = GetConvar("onesync", "off")
-local newPlayer = "INSERT INTO `users` SET `accounts` = ?, `identifier` = ?, `group` = ?"
-local loadPlayer = "SELECT `accounts`, `job`, `job_grade`, `group`, `position`, `inventory`, `skin`, `loadout`, `metadata`"
+local newPlayer = "INSERT INTO `users` SET `accounts` = ?, `identifier` = ?, `group` = ?, `sid` = ?"
+local loadPlayer = "SELECT `accounts`, `job`, `job_grade`, `group`, `position`, `inventory`, `skin`, `loadout`, `metadata`, `sid`"
 
 if Config.Multichar then
     newPlayer = newPlayer .. ", `firstname` = ?, `lastname` = ?, `dateofbirth` = ?, `sex` = ?, `height` = ?"
@@ -19,6 +19,14 @@ end
 
 loadPlayer = loadPlayer .. " FROM `users` WHERE identifier = ?"
 
+function isSIDInUse(sid)
+	local query = MySQL.Sync.fetchAll('SELECT * FROM users WHERE sid = @sid', {
+		['@sid'] = sid
+	})
+
+	return #query > 0
+end
+
 local function createESXPlayer(identifier, playerId, data)
     local accounts = {}
 
@@ -32,7 +40,52 @@ local function createESXPlayer(identifier, playerId, data)
         defaultGroup = "admin"
     end
 
-    local parameters = Config.Multichar and { json.encode(accounts), identifier, defaultGroup, data.firstname, data.lastname, data.dateofbirth, data.sex, data.height } or { json.encode(accounts), identifier, defaultGroup }
+    local function generateUniqueSID()
+		local function RandomLetters(num)
+			local letters = {}
+			for char = 65, 90 do -- ASCII values for uppercase letters
+				table.insert(letters, string.char(char))
+			end
+			local result = ""
+			for i = 1, num do
+				result = result .. letters[math.random(1, #letters)]
+			end
+			return result
+		end
+	
+		local num = math.random(1, 10)
+		local sid_new = ""
+	
+		if num == 1 then
+			sid_new = math.random(1, 9) .. RandomLetters(1) .. math.random(111, 999)
+		elseif num == 2 then
+			sid_new = math.random(111, 999) .. RandomLetters(1) .. math.random(1, 9)
+		elseif num == 3 or num == 4 then
+			sid_new = math.random(11, 99) .. RandomLetters(2) .. math.random(1, 9)
+		elseif num == 5 then
+			sid_new = RandomLetters(1) .. math.random(111, 999) .. math.random(1, 9)
+		elseif num == 6 then
+			sid_new = math.random(111, 999) .. math.random(1, 9) .. RandomLetters(1)
+		elseif num == 7 then
+			sid_new = math.random(1111, 9999) .. RandomLetters(1)
+		elseif num == 8 then
+			sid_new = RandomLetters(1) .. math.random(1111, 9999)
+		elseif num == 9 then
+			sid_new = RandomLetters(1) .. math.random(111, 999) .. RandomLetters(1)
+		elseif num == 10 then
+			sid_new = math.random(11111, 99999)
+		end
+	
+		-- Check if SID is already in use
+		if isSIDInUse(sid_new) then
+			return generateUniqueSID()
+		else
+			return sid_new
+		end
+	end
+    local sid_new = generateUniqueSID()
+
+    local parameters = Config.Multichar and { json.encode(accounts), identifier, defaultGroup,sid_new, data.firstname, data.lastname, data.dateofbirth, data.sex, data.height } or { json.encode(accounts), identifier, defaultGroup,sid_new }
 
     if Config.StartingInventoryItems then
         table.insert(parameters, json.encode(Config.StartingInventoryItems))
@@ -254,11 +307,15 @@ function loadESXPlayer(identifier, playerId, isNew)
     -- Metadata
     userData.metadata = (result.metadata and result.metadata ~= "") and json.decode(result.metadata) or {}
 
+    -- sid System Made By Saq
+    userData.sid = result.sid
+
     -- xPlayer Creation
-    local xPlayer = CreateExtendedPlayer(playerId, identifier, userData.group, userData.accounts, userData.inventory, userData.weight, userData.job, userData.loadout, GetPlayerName(playerId), userData.coords, userData.metadata)
+    local xPlayer = CreateExtendedPlayer(playerId, identifier, userData.group, userData.accounts, userData.inventory, userData.weight, userData.job, userData.loadout, GetPlayerName(playerId), userData.coords, userData.metadata,userData.sid)
 
     GlobalState["playerCount"] = GlobalState["playerCount"] + 1
     ESX.Players[playerId] = xPlayer
+    Core.playersBySID[userData.sid] = xPlayer
     Core.playersByIdentifier[identifier] = xPlayer
 
     -- Identity
@@ -323,6 +380,7 @@ AddEventHandler("playerDropped", function(reason)
 
         GlobalState[("%s:count"):format(job)] = ESX.JobsPlayerCount[job]
         Core.playersByIdentifier[xPlayer.identifier] = nil
+        Core.playersBySID[xPlayer.sid] = nil
 
         Core.SavePlayer(xPlayer, function()
             GlobalState["playerCount"] = GlobalState["playerCount"] - 1
@@ -357,6 +415,7 @@ AddEventHandler("esx:playerLogout", function(playerId, cb)
         TriggerEvent("esx:playerDropped", playerId)
 
         Core.playersByIdentifier[xPlayer.identifier] = nil
+        Core.playersBySID[xPlayer.sid] = nil
         Core.SavePlayer(xPlayer, function()
             GlobalState["playerCount"] = GlobalState["playerCount"] - 1
             ESX.Players[playerId] = nil

@@ -17,10 +17,12 @@ CREATE TABLE `users` (
 	`job_grade` INT NULL DEFAULT 0,
 	`loadout` LONGTEXT NULL DEFAULT NULL,
 	`metadata` LONGTEXT NULL DEFAULT NULL,
-	`position` longtext NULL DEFAULT NULL,
+	`position` LONGTEXT NULL DEFAULT NULL,
+	`sid` VARCHAR(255) UNIQUE NOT NULL,  -- Add the sid column here
 
 	PRIMARY KEY (`identifier`)
 ) ENGINE=InnoDB;
+
 
 CREATE TABLE `items` (
 	`name` VARCHAR(50) NOT NULL,
